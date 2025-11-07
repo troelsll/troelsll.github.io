@@ -1,0 +1,223 @@
+<!-- index.html (light/MapCon-style, supports offline + JSON import/export) -->
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MapCon – Konferencekort</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="light">
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-pin">📍</span>
+      <div class="brand-text">
+        <h1>MapCon</h1>
+        <p>Convention Maps Dashboard</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-admin" class="ghost">Admin</button>
+      <button id="btn-new-event-map" class="primary">Create New Map</button>
+    </div>
+  </header>
+
+  <div class="toolbar-row">
+    <input id="search-eventmaps" type="search" placeholder="Search by event name or location..." />
+    <div class="toolbar-right">
+      <label class="ghost file-btn">
+        Import JSON
+        <input id="import-json" type="file" accept="application/json" />
+      </label>
+      <button id="export-json" class="ghost">Export JSON</button>
+      <button id="btn-export-pdf" class="secondary">Download PDF</button>
+    </div>
+  </div>
+
+  <main class="app-main">
+    <aside class="sidebar">
+      <div class="tabs">
+        <button class="tab active" data-tab="tab-eventmaps">Convention Maps</button>
+        <button class="tab" data-tab="tab-maps">Basemaps</button>
+        <button class="tab" data-tab="tab-categories">Categories</button>
+        <button class="tab" data-tab="tab-pois">POIs</button>
+      </div>
+
+      <section id="tab-eventmaps" class="tab-panel active">
+        <ul id="eventmaps-list" class="card-grid"></ul>
+      </section>
+
+      <section id="tab-maps" class="tab-panel">
+        <div class="panel-header">
+          <h2>Basemaps</h2>
+          <button id="btn-upload-map" class="primary">Upload New</button>
+        </div>
+        <form id="form-add-map" class="form inline-form">
+          <label>Navn
+            <input type="text" id="map-name" required />
+          </label>
+          <label>Billede (PNG/JPG)
+            <input type="file" id="map-image" accept="image/png,image/jpeg" required />
+          </label>
+          <button class="primary" type="submit">Tilføj basiskort</button>
+        </form>
+        <ul id="maps-list" class="list list-lines"></ul>
+      </section>
+
+      <section id="tab-categories" class="tab-panel">
+        <div class="panel-header">
+          <h2>Categories</h2>
+        </div>
+        <form id="form-add-category" class="form inline-form">
+          <label>Navn
+            <input type="text" id="cat-name" required />
+          </label>
+          <label>Farve
+            <input type="color" id="cat-color" value="#1e88e5" required />
+          </label>
+          <button class="primary" type="submit">Add Category</button>
+        </form>
+        <ul id="categories-list" class="list list-lines"></ul>
+      </section>
+
+      <section id="tab-pois" class="tab-panel">
+        <div class="panel-header">
+          <h2>POIs</h2>
+          <button id="btn-add-poi" class="primary">Add POI</button>
+        </div>
+        <div class="hint">Drag POIs from the list and drop on the map.</div>
+        <ul id="pois-list" class="list list-draggable list-lines"></ul>
+      </section>
+    </aside>
+
+    <section class="canvas-area">
+      <div class="canvas-toolbar">
+        <label>Basemap:
+          <select id="active-map-select"></select>
+        </label>
+        <div class="spacer"></div>
+        <label>Zoom:
+          <input type="range" id="zoom-range" min="50" max="200" value="100" />
+          <span id="zoom-label">100%</span>
+        </label>
+        <button id="btn-clear-placements" class="danger">Clear Placements</button>
+        <button id="btn-save-event-map" class="primary">Save Changes</button>
+      </div>
+
+      <div id="map-stage" class="map-stage">
+        <img id="base-map-img" alt="Basiskort" />
+        <div id="overlay" class="overlay"></div>
+      </div>
+
+      <div class="legend">
+        <h3>Legend</h3>
+        <ul id="legend-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dialog: New Event Map -->
+  <dialog id="dlg-new-event-map" class="modal">
+    <form method="dialog" id="form-new-event-map" class="form">
+      <h3>Create Convention Map</h3>
+      <label>Event Name *
+        <input type="text" id="new-event-map-name" required />
+      </label>
+      <menu class="modal-actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button class="primary" value="ok">Create Map</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Dialog: Rename Event Map -->
+  <dialog id="dlg-rename-event-map" class="modal">
+    <form method="dialog" id="form-rename-event-map" class="form">
+      <h3>Rename Map</h3>
+      <label>New name
+        <input type="text" id="rename-event-map-name" required />
+      </label>
+      <menu class="modal-actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button class="primary" value="ok">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Dialog: Add POI (let, ren client) -->
+  <dialog id="dlg-add-poi" class="modal">
+    <form id="form-add-poi" class="form">
+      <h3>Add New POI</h3>
+      <label>Name *
+        <input type="text" id="poi-name" required />
+      </label>
+      <label>Category *
+        <select id="poi-category" required></select>
+      </label>
+      <label>Icon (optional)
+        <input type="file" id="poi-icon" accept="image/*" />
+      </label>
+      <menu class="modal-actions">
+        <button type="button" class="ghost" onclick="document.getElementById('dlg-add-poi').close()">Cancel</button>
+        <button class="primary" type="submit">Create POI</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Print (PDF) view -->
+  <section id="print-sheet">
+    <div class="print-header">
+      <div class="print-title-block">
+        <img id="print-logo" alt="" class="print-logo" />
+        <div>
+          <h1 id="print-title">Event Map</h1>
+          <p id="print-subtitle"></p>
+        </div>
+      </div>
+    </div>
+    <div class="print-map-wrap">
+      <img id="print-base-map" alt="Basiskort" />
+      <div id="print-overlay" class="overlay print-overlay"></div>
+    </div>
+    <div class="print-legend">
+      <h2>Legend</h2>
+      <ul id="print-legend-list"></ul>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+  <script>
+    // Små UI-hooks for modals + import/export (app.js kan fange knapper via IDs)
+    document.getElementById('btn-add-poi')?.addEventListener('click', () => {
+      document.getElementById('dlg-add-poi').showModal();
+    });
+    document.getElementById('import-json')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const txt = await file.text();
+      try {
+        const data = JSON.parse(txt);
+        // Appens app.js kan tilbyde en global importer hvis du vil (ellers fjern)
+        if (window.appImportJSON) await window.appImportJSON(data);
+        e.target.value = '';
+        alert('Data importeret.');
+      } catch {
+        alert('Kunne ikke importere JSON.');
+      }
+    });
+    document.getElementById('export-json')?.addEventListener('click', async () => {
+      if (window.appExportJSON) {
+        const data = await window.appExportJSON();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'mapcon-data.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } else {
+        alert('Export-funktion ikke tilgængelig.');
+      }
+    });
+  </script>
+</body>
+</html>
